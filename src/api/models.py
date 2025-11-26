@@ -11,9 +11,9 @@ class User(db.Model):
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(nullable=False)
     vehicle: Mapped[bool] = mapped_column(Boolean(), nullable=False)
-    coordenates: Mapped[str] = mapped_column(String(120),nullable=False, unique=True)
-    name: Mapped[str]= mapped_column(String(200),nullable=False)
-    vehicle_consume_km: Mapped[float] = mapped_column(Float(50),nullable= True)
+    coordenates: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    vehicle_consume_km: Mapped[float] = mapped_column(Float(50), nullable=True)
     
 
 
@@ -33,16 +33,16 @@ class Oferta(db.Model):
     __tablename__="oferta"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    id_comprador: Mapped[int] = mapped_column(Integer(),ForeignKey("user.id"), nullable=True)
-    id_vendedor: Mapped[int] = mapped_column(Integer(),ForeignKey("user.id"),nullable=False)
+    id_comprador: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id"), nullable=True)
+    id_vendedor: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id"), nullable=False)
     esta_realizada: Mapped[bool] = mapped_column(Boolean(), nullable=False)
-    descripcion: Mapped[str] = mapped_column(String(600),nullable=False)
-    titulo: Mapped[str]= mapped_column(String(200),nullable=False)
-    coordenates_vendedor: Mapped[str] = mapped_column(String(120),ForeignKey("user.coordenates"),nullable=False)
-    coordenates_comprador: Mapped[str] = mapped_column(String(120),ForeignKey("user.coordenates"),nullable=True)
-    precio_ud: Mapped[int] = mapped_column(Integer(),nullable=True)
-    ud:Mapped[str] = mapped_column(String(200),nullable=False)
-    img_cosecha:Mapped[str] = mapped_column(String(),nullable=True)
+    descripcion: Mapped[str] = mapped_column(String(600), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
+    coordenates_vendedor: Mapped[str] = mapped_column(String(120), nullable=False)
+    coordenates_comprador: Mapped[str] = mapped_column(String(120), nullable=True)
+    precio_ud: Mapped[float] = mapped_column(Float(), nullable=True)
+    ud: Mapped[str] = mapped_column(String(200), nullable=False)
+    img_cosecha: Mapped[str] = mapped_column(String(), nullable=True)
 
     
 

@@ -556,7 +556,7 @@ export const BusquedaOfertas = () => {
                                 </div>
                               )}
                             </div>
-                            <APIProvider apiKey={"AIzaSyA5_WFVBLTMfaheneobOObkt0mLJZj1EcQ"}>
+                            <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
                               <Map 
                                 defaultZoom={11}
                                 defaultCenter={coordinates}

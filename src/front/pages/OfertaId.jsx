@@ -167,7 +167,7 @@ export const OfertaId = () => {
                     <div className="mapa-overlay" style={{ zIndex: 1000 }}>
                       📍 Finca ubicada en campo español
                     </div>
-                    <APIProvider apiKey={"AIzaSyA5_WFVBLTMfaheneobOObkt0mLJZj1EcQ"}>
+                    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
                       <Map
                         defaultZoom={13}
                         defaultCenter={coordinates}

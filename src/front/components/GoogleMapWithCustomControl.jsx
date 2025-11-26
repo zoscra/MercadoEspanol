@@ -26,7 +26,7 @@ export const GoogleMapWithCustomControl = () => {
 
 
   return (
-    <APIProvider apiKey={"AIzaSyA5_WFVBLTMfaheneobOObkt0mLJZj1EcQ"}>
+    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
       <Map defaultZoom={5}
         defaultCenter={MADRID_LOCATION}
         mapId={"d9aa07a16a3fc9d12e3ebf0b"}

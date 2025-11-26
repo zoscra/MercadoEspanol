@@ -5,6 +5,10 @@ This module takes care of starting the API Server, Loading the DB and Adding the
 from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User, Oferta
 from api.utils import generate_sitemap, APIException
+from api.schemas import (
+    UserRegistrationSchema, UserLoginSchema, OfertaCreationSchema,
+    PasswordResetSchema, PasswordUpdateSchema
+)
 from flask_cors import CORS
 import bcrypt
 from flask_jwt_extended import create_access_token
@@ -15,6 +19,7 @@ import os
 import re
 from flask_jwt_extended import decode_token
 import jwt
+from marshmallow import ValidationError
 
 
 
@@ -43,23 +48,38 @@ def handle_hello():
 # Post para registrar un usuario
 @api.route('/user/register', methods=['POST'])
 def user_register():
+    schema = UserRegistrationSchema()
 
-    body = request.get_json()
-    new_pass=bcrypt.hashpw(body["password"].encode(), bcrypt.gensalt())
+    try:
+        # Validar datos de entrada
+        data = schema.load(request.get_json())
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
 
+    # Verificar si el usuario ya existe
+    existing_user = User.query.filter_by(email=data["email"]).first()
+    if existing_user:
+        return jsonify({"error": "El email ya está registrado"}), 400
 
+    # Hash de la contraseña
+    new_pass = bcrypt.hashpw(data["password"].encode(), bcrypt.gensalt())
+
+    # Crear nuevo usuario
     new_user = User()
-    new_user.name = body["name"]
-    new_user.email = body["email"]
+    new_user.name = data["name"]
+    new_user.email = data["email"]
     new_user.password = new_pass.decode()
-    new_user.vehicle = body["vehicle"]
-    new_user.vehicle_consume_km = body["vehicle_consume_km"]
-    new_user.coordenates = body["coordenates"]
+    new_user.vehicle = data.get("vehicle")
+    new_user.vehicle_consume_km = data.get("vehicle_consume_km")
+    new_user.coordenates = data["coordenates"]
 
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify("new_user"), 200
+    return jsonify({
+        "msg": "Usuario creado exitosamente",
+        "user": new_user.serialize()
+    }), 201
 
 
 
@@ -68,47 +88,52 @@ def user_resetPassWord():
     body = request.get_json()
     token = body.get("token")
     if not token:
-        return jsonify({"error": "No tengo ni Token ni mierda en las tripas"}), 401
+        return jsonify({"error": "Token de autenticación no proporcionado"}), 401
     try:
         decoded_token = decode_token(token)
         user_id = decoded_token["sub"]
-        user = User.query.filter_by(id=int(user_id)).first
+        user = User.query.filter_by(id=int(user_id)).first()
         if not user:
-            return jsonify({"error": "Usuario no valido esto es una verga"}), 400
+            return jsonify({"error": "Usuario no válido o token expirado"}), 401
         password_data = body.get("password")
         if password_data:
             new_password = password_data.get("nuevaContraseña")
         else:
             new_password = body.get("password")
         if not new_password:
-            return jsonify({"error": "Nueva contraseña media chota"}), 400
+            return jsonify({"error": "Nueva contraseña es requerida"}), 400
         hashed_password = bcrypt.hashpw(
             new_password.encode(), bcrypt.gensalt())
         user.password = hashed_password.decode()
         db.session.commit()
-        return jsonify({"msg": "Contaseña se ha actualizado ya no es la vieja es la nueva weon"})
+        return jsonify({"msg": "Contraseña actualizada exitosamente"})
     except Exception as e:
         db.session.rollback()
         print(f"error: {e}")
-        return jsonify({"error": "Error al actualizar la contraseña checkea la movie del codigo"})
+        return jsonify({"error": "Error al actualizar la contraseña"}), 500
 
 # Post para logear un usuario
 @api.route("/user/login", methods=["POST"])
 def user_login():
-    body = request.get_json()
-    user = User.query.filter_by(email=body["email"]).first()
-    user_pass = User.query.filter_by(password=body["password"]).first()
+    schema = UserLoginSchema()
+
+    try:
+        # Validar datos de entrada
+        data = schema.load(request.get_json())
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
+
+    user = User.query.filter_by(email=data["email"]).first()
 
     if user is None:
-        return jsonify("Cuenta no existe"),404
-    
-    if bcrypt.checkpw(body["password"].encode(),user.password.encode()):
-        user_serialize = user.serialize() 
-        token = create_access_token(identity = str(user_serialize["id"]))
-        return jsonify({"token":token},{"user":user_serialize}),200
+        return jsonify({"error": "Credenciales incorrectas"}), 401
 
+    if bcrypt.checkpw(data["password"].encode(), user.password.encode()):
+        user_serialize = user.serialize()
+        token = create_access_token(identity=str(user_serialize["id"]))
+        return jsonify({"token": token, "user": user_serialize}), 200
 
-    return jsonify("Usuario logueado"),200
+    return jsonify({"error": "Credenciales incorrectas"}), 401
 
 # GET pedir informacion sobre un usuario
 @api.route("/user", methods=["GET"])
@@ -158,29 +183,40 @@ def get_oferta(oferta_id):
 @api.route("/user/ofertas", methods=["POST"])
 @jwt_required()
 def post_ofertas():
+    schema = OfertaCreationSchema()
+
+    try:
+        # Validar datos de entrada
+        data = schema.load(request.get_json())
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
+
     current_user = get_jwt_identity()
     user = User.query.get(current_user)
 
-    body = request.get_json()
+    if user is None:
+        return jsonify({"error": "Usuario no válido"}), 400
+
+    # Crear nueva oferta
     nueva_oferta = Oferta()
     nueva_oferta.id_comprador = None
     nueva_oferta.coordenates_comprador = None
     nueva_oferta.id_vendedor = user.id
     nueva_oferta.esta_realizada = False
-    nueva_oferta.descripcion = body["descripcion"]
-    nueva_oferta.titulo = body["titulo"]
+    nueva_oferta.descripcion = data.get("descripcion")
+    nueva_oferta.titulo = data["titulo"]
     nueva_oferta.coordenates_vendedor = user.coordenates
-    nueva_oferta.precio_ud = body["precio_ud"]
-    nueva_oferta.ud = body["ud"]
-    nueva_oferta.img_cosecha = body["img_cosecha"]
+    nueva_oferta.precio_ud = data["precio_ud"]
+    nueva_oferta.ud = data["ud"]
+    nueva_oferta.img_cosecha = data.get("img_cosecha")
 
     db.session.add(nueva_oferta)
     db.session.commit()
 
-
-    if user is None:
-        return jsonify("Usuario no valido"),400
-    return jsonify(nueva_oferta.serialize()),200
+    return jsonify({
+        "msg": "Oferta creada exitosamente",
+        "oferta": nueva_oferta.serialize()
+    }), 201
 
 
 # PUT comprar una oferta
@@ -232,21 +268,35 @@ def BorrarOfertas(oferta_id):
 
 @api.route("/resetPassword", methods=['POST'])
 def resetPassword():
-    data = request.get_json()
-    user_email = data.get('email')
-    user = User.query.filter_by(email=data["email"]).first()
+    schema = PasswordResetSchema()
+
+    try:
+        # Validar datos de entrada
+        data = schema.load(request.get_json())
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
+
+    user_email = data["email"]
+    user = User.query.filter_by(email=user_email).first()
+
+    if not user:
+        # Por seguridad, no revelar si el usuario existe o no
+        return jsonify({"msg": "Si el email existe, recibirás un enlace de recuperación"}), 200
+
     user_serialize = user.serialize()
     token = create_access_token(identity=str(user_serialize["id"]))
     cadena_modificada = re.sub(r"\.", "_", token)
     reset_url_password = f"{url_front}resetPassword/{cadena_modificada}"
-    
-    msg = Message(
-        "Email",
-        html=f"<p>para restablecer la contraseña, da click <a href={reset_url_password}>aqui</a> </p>",
-        sender="u7384442007@gmail.com",
-        recipients=[user_email],
-    )
 
-    mail.send(msg)
+    try:
+        msg = Message(
+            "Recuperación de Contraseña - Mercado Español",
+            html=f"<p>Para restablecer tu contraseña, haz click <a href={reset_url_password}>aquí</a></p>",
+            recipients=[user_email],
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Error enviando email: {e}")
+        return jsonify({"error": "Error al enviar el email"}), 500
 
-    return jsonify("Enviado co"),200
+    return jsonify({"msg": "Email de recuperación enviado exitosamente"}), 200

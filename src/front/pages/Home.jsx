@@ -378,7 +378,7 @@ export const Home = () => {
                                 <div className="mapa-overlay">
                                   📍 Finca ubicada en campo español
                                 </div>
-                                <APIProvider apiKey={"AIzaSyA5_WFVBLTMfaheneobOObkt0mLJZj1EcQ"}>
+                                <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
                                   <Map
                                     defaultZoom={11}
                                     defaultCenter={coordinates}
