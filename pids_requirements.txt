@@ -1,0 +1,16 @@
+# PIDS Requirements
+# Python 3.8+
+
+# Core dependencies
+redis>=4.5.0
+numpy>=1.24.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Optional: For better performance
+hiredis>=2.2.0
